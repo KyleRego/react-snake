@@ -1,3 +1,7 @@
+.game {
+  font-size: 32px;
+}
+
 .board {
   display: flex;
   flex-direction: column;
@@ -17,4 +21,8 @@
 
 .snake {
   background-color: lightgreen;
+}
+
+.food {
+  background-color: pink;
 }

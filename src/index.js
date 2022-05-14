@@ -2,16 +2,19 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
-const NUMBER_OF_SQUARES = 10 * 10;
+const NUMBER_OF_SQUARES = 20 * 20;
 
 class Game extends React.Component {
   constructor(props) {
     super(props);
-    let snakePositions = [this.calculateInitialSnakePosition()];
+    let snakePositions = [this.calculateRandomPosition()];
     let snakeDirection = this.calculateInitialSnakeDirection();
+    let foodPosition = this.calculateRandomPosition();
     this.state = {
       snakePositions: snakePositions,
       snakeDirection: snakeDirection,
+      foodPosition: foodPosition,
+      isGameOver: false,
     }
   }
 
@@ -24,13 +27,64 @@ class Game extends React.Component {
   }
 
   tick() {
+    if (this.state.isGameOver) {
+      clearInterval(this.intervalId)
+    }
+    else if (this.snakeIsOverlappingItself(this.state.snakePositions)) {
+      this.endGame();
+    }
+    else if (this.snakeIsOverLappingFood(this.state.snakePositions, this.state.foodPosition)) {
+      this.moveSnake(true);
+      this.moveFood();
+    } else {
+      this.moveSnake(false);
+    }
+  }
+
+  moveSnake(keepTail) {
     this.setState((state, props) => ({
-      snakePositions: this.calculateNewSnakePositions(state.snakePositions, state.snakeDirection),
+      snakePositions: this.calculateNewSnakePositions(state.snakePositions, state.snakeDirection, keepTail),
       snakeDirection: state.snakeDirection,
+      foodPosition: state.foodPosition,
+      isGameOver: false,
     }));
   }
 
-  calculateNewSnakePositions(snakePositions, direction) {
+  moveFood() {
+    this.setState((state, props) => ({
+      snakePositions: state.snakePositions,
+      snakeDirection: state.snakeDirection,
+      foodPosition: this.calculateRandomPosition(),
+      isGameOver: false,
+    }));
+  }
+
+  endGame() {
+    this.setState((state, props) => ({
+      snakePositions: state.snakePositions,
+      snakeDirection: state.snakeDirection,
+      foodPosition: state.foodPosition,
+      isGameOver: true,
+    }));
+  }
+
+  snakeIsOverLappingFood(snakePositions, foodPosition) {
+    return snakePositions.some(snakePosition => {
+      return snakePosition[0] === foodPosition[0] && snakePosition[1] === foodPosition[1];
+    })
+  }
+
+  snakeIsOverlappingItself(snakePositions) {
+    const head = snakePositions[snakePositions.length - 1];
+    for (let i = 0; i < snakePositions.length - 2; i += 1) {
+      if (head[0] === snakePositions[i][0] && head[1] === snakePositions[i][1]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  calculateNewSnakePositions(snakePositions, direction, keepTail) {
     const head = snakePositions[snakePositions.length - 1];
     let newHead;
     switch (direction) {
@@ -51,7 +105,9 @@ class Game extends React.Component {
     }
     newHead = this.adjustPositionsToKeepWithinBoundaries(newHead);
     snakePositions.push(newHead);
-    snakePositions.shift();
+    if (!keepTail) {
+      snakePositions.shift();
+    }
     return snakePositions;
   }
 
@@ -69,7 +125,7 @@ class Game extends React.Component {
     return position;
   }
 
-  calculateInitialSnakePosition() {
+  calculateRandomPosition() {
     return [
       Math.floor(Math.random() * Math.sqrt(NUMBER_OF_SQUARES)),
       Math.floor(Math.random() * Math.sqrt(NUMBER_OF_SQUARES))
@@ -127,7 +183,8 @@ class Game extends React.Component {
         onClick={() => console.log('It was clicked')}
         tabIndex = "0"
       >
-      <Board snakePositions={this.state.snakePositions}/>
+      {this.state.isGameOver ? 'Game over!' : 'Welcome to Snake!'}
+      <Board snakePositions={this.state.snakePositions} foodPosition={this.state.foodPosition}/>
       </div>
     )
   }
@@ -156,7 +213,7 @@ class Board extends React.Component {
           return snakePosition[0] === rowIndex;
         }).map(rowSnakePosition => rowSnakePosition[1]);
         
-        return (<Row row={row} rowSnakePositions={rowSnakePositions} rowIndex={rowIndex} key={rowIndex}/>)
+        return (<Row row={row} rowSnakePositions={rowSnakePositions} foodPosition={this.props.foodPosition} rowIndex={rowIndex} key={rowIndex}/>)
       })
     )
   }
@@ -169,7 +226,9 @@ class Row extends React.Component {
         {
           this.props.row.map((square, columnIndex) => {
             if (this.props.rowSnakePositions.includes(columnIndex)) {
-              square = 'snake'
+              square = 'snake';
+            } else if (this.props.foodPosition[0] === this.props.rowIndex && this.props.foodPosition[1] === columnIndex) {
+              square = 'food';
             }
             return <Square value={square} key={columnIndex}/>;
           })
